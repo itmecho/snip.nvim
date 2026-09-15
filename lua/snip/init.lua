@@ -11,7 +11,7 @@ local config = {
 local function mk_path(ft, file)
   local p = config.snippets_dir
   if ft then
-    p = vim.fs.joinpath(p ,ft)
+    p = vim.fs.joinpath(p, ft)
   end
   if file then
     p = vim.fs.joinpath(p, file)
