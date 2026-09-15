@@ -41,7 +41,10 @@ function snip.pick(opts)
 
   local ft = vim.opt.filetype:get()
   ft = config.ft_map[ft] or ft
-  local files = snip.list_for_ft(ft)
+  local files = {}
+  if ft then
+    files = snip.list_for_ft(ft)
+  end
 
   ---@class Item
   ---@field text string
