@@ -52,3 +52,24 @@ require('snip').setup({
   global_dirname = '_all',
 })
 ```
+
+## Completion plugins
+
+### `blink.cmp`
+
+To configure snippets with `blink.cmp`, add the following to your blink setup:
+
+```lua
+require('blink.cmp').setup({
+  -- ...
+  sources = {
+    default = { 'snip' },
+    providers = {
+      snip = {
+        name = 'snip',
+        module = 'snip.blink',
+      },
+    },
+  },
+})
+```

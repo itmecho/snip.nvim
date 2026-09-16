@@ -1,3 +1,5 @@
+local util = require('snip.util')
+
 ---@class Config
 ---@field snippets_dir string Path to the snippets directory.
 ---@field ft_map table<string, string> Map of filetype aliases. This allows for multiple filetypes to map to the same snippet filetype directory.
@@ -7,17 +9,6 @@ local config = {
   ft_map = {},
   global_dirname = '_global',
 }
-
-local function mk_path(ft, file)
-  local p = config.snippets_dir
-  if ft then
-    p = vim.fs.joinpath(p, ft)
-  end
-  if file then
-    p = vim.fs.joinpath(p, file)
-  end
-  return p
-end
 
 local snip = {}
 
@@ -39,11 +30,11 @@ function snip.pick(opts)
     exclude_global = false,
   })
 
-  local ft = vim.opt.filetype:get()
+  local ft = vim.o.filetype
   ft = config.ft_map[ft] or ft
-  local files = {}
+  local snippets = {}
   if ft then
-    files = snip.list_for_ft(ft)
+    snippets = snip.list_for_ft(ft)
   end
 
   ---@class Item
@@ -54,23 +45,23 @@ function snip.pick(opts)
   ---@type Item[]
   local items = {}
 
-  for _, f in ipairs(files) do
+  for _, s in ipairs(snippets) do
     ---@type Item
-    local item = { text = 'ft: ' .. f, filename = f, ft = ft }
+    local item = { text = 'ft: ' .. s.filename, filename = s.filename, ft = s.filetype }
     table.insert(items, item)
   end
   if not opts.exclude_global then
-    for _, f in ipairs(snip.list_for_ft(config.global_dirname)) do
+    for _, s in ipairs(snip.list_for_ft(config.global_dirname)) do
       ---@type Item
       local item = {
-        text = 'global: ' .. f,
-        filename = f,
-        ft = config.global_dirname,
+        text = 'global: ' .. s.filename,
+        filename = s.filename,
+        ft = s.filetype,
       }
       table.insert(items, item)
     end
   end
-  if #files == 0 then
+  if #items == 0 then
     vim.notify('no snippets found for filetype ' .. ft)
     return
   end
@@ -85,46 +76,51 @@ function snip.pick(opts)
     ---@param item Item
     function(item)
       if item then
-        snip.expand(mk_path(item.ft, item.filename))
+        snip.expand(util.mk_path(config.snippets_dir, item.ft, item.filename))
       end
     end
   )
 end
 
----Lists available snippet files for the given filetype.
+---@class Snippet
+---@field filename string The name of the snippet file.
+---@field filetype string The filetype the snippet should be used for.
+---@field path string The full path to the snippet file.
+
+---Lists available snippets for the given filetype.
 ---
----@param ft string  Filetype to list snippets for.
----@return string[] filenames List of snippet filenames.
+---@param ft string Filetype to list snippets for.
+---@return Snippet[] snippets List of snippets.
 function snip.list_for_ft(ft)
   assert(ft ~= nil and #ft > 0, 'ft is required')
 
-  local dir = mk_path(ft)
+  local dir = util.mk_path(config.snippets_dir, ft)
   if vim.fn.isdirectory(dir) == 0 then
     return {}
   end
 
   ---@type string[]
-  local files = {}
+  local snippets = {}
   for f, t in vim.fs.dir(dir) do
     if t == 'file' then
-      table.insert(files, f)
+      ---@type Snippet
+      local s = {
+        filename = f,
+        filetype = ft,
+        path = util.mk_path(config.snippets_dir, ft, f)
+      }
+      table.insert(snippets, s)
     end
   end
 
-  return files
+  return snippets
 end
 
 ---Expands a snippet file into the current active buffer.
 ---
 ---@param path string  Absolute path to the snippet source file.
 function snip.expand(path)
-  local f = io.open(path, 'r')
-  if not f then
-    error('file does not exist: ' .. path)
-  end
-  local content = f:read('a')
-  f:close()
-  vim.snippet.expand(content)
+  vim.snippet.expand(util.read_file(path))
 end
 
 return snip
